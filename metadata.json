@@ -1,0 +1,5 @@
+{
+  "name": "ระบบบริหารจัดการคุณภาพมาตรฐานบริการกายภาพบำบัด จังหวัดชัยภูมิ",
+  "description": "A comprehensive web application for scheduling, assessing, and analyzing physical therapy service standards across hospitals in Chaiyaphum, featuring intelligent scheduling validation and standard-based scoring.",
+  "requestFramePermissions": []
+}
