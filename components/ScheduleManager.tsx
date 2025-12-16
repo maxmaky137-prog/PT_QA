@@ -37,8 +37,8 @@ export const ScheduleManager: React.FC = () => {
   const checkConstraints = (newSlots: (HospitalName | null)[], currentHost: HospitalName | ''): string[] => {
     const msgs: string[] = [];
     const dateObj = new Date(selectedDate);
-    const threeMonthsAgo = new Date(dateObj);
-    threeMonthsAgo.setMonth(dateObj.getMonth() - 3);
+    const currentMonth = dateObj.getMonth();
+    const currentYear = dateObj.getFullYear();
 
     // 0. Check if host is also in visitor slots
     if (currentHost && newSlots.includes(currentHost)) {
@@ -52,22 +52,28 @@ export const ScheduleManager: React.FC = () => {
       msgs.push("ไม่สามารถเลือกโรงพยาบาลซ้ำในทีมผู้เยี่ยมวันเดียวกันได้");
     }
 
-    // 2. Check 3-month history rule for Visiting Team
+    // 2. Check Monthly Limit Rule (Max 6 times per month, excluding Chaiyaphum and PhuKhieo)
     newSlots.forEach(hospital => {
-      if (!hospital || hospital === HospitalName.Chaiyaphum) return; 
+      // Exclude Chaiyaphum and PhuKhieo from the limit check
+      if (!hospital || hospital === HospitalName.Chaiyaphum || hospital === HospitalName.PhuKhieo) return; 
 
       let count = 0;
+      // Count existing schedules in the SAME month
       schedules.forEach(sch => {
+        // Skip current date (in case we are editing the existing record)
+        if (sch.date === selectedDate) return;
+
         const sDate = new Date(sch.date);
-        if (sDate >= threeMonthsAgo && sDate < dateObj) {
+        if (sDate.getMonth() === currentMonth && sDate.getFullYear() === currentYear) {
           if (sch.hospitals.includes(hospital)) {
             count++;
           }
         }
       });
 
-      if (count >= 3) {
-        msgs.push(`${hospital} ออกเยี่ยมครบ 3 ครั้งแล้วในช่วง 3 เดือนที่ผ่านมา`);
+      // Add 1 for the current assignment we are about to save
+      if (count + 1 > 6) {
+        msgs.push(`${hospital} ออกเยี่ยมครบ 6 ครั้งแล้วในเดือนนี้ (ปัจจุบันมี ${count} ครั้ง + ครั้งนี้)`);
       }
     });
 
