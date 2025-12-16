@@ -1,63 +1,116 @@
-export enum HospitalName {
-  PakdiChumpol = "รพ.ภักดีชุมพล",
-  SapYai = "รพ.ซับใหญ่",
-  BamnetNarong = "รพ.บำเหน็จณรงค์",
-  Chatturat = "รพ.จตุรัส",
-  BanKhwao = "รพ.บ้านเขว้า",
-  ChaiyaphumMunicipality = "เทศบาลเมืองชัยภูมิ",
-  ThepSathit = "รพ.เทพสถิต",
-  KaengKhro = "รพ.แก้งคร้อ",
-  NongBuaDaeng = "รพ.หนองบัวแดง",
-  PhuKhieo = "รพ.ภูเขียวเฉลิมพระเกียรติ",
-  KhonSan = "รพ.คอนสาร",
-  Chaiyaphum = "รพ.ชัยภูมิ",
-  NongBuaRawe = "รพ.หนองบัวระเหว",
-  NoenSaNga = "รพ.เนินสง่า",
-  BanThaen = "รพ.บ้านแท่น",
-  KhonSawan = "รพ.คอนสวรรค์",
-  KasetSombun = "รพ.เกษตรสมบูรณ์",
-  SpecialEducationCenter = "ศูนย์การศึกษาพิเศษ"
+
+export enum AssetStatus {
+  ACTIVE = 'Active',
+  REPAIR = 'Under Repair',
+  LOANED = 'Loaned Out',
+  DISPOSED = 'Disposed',
+  MAINTENANCE_DUE = 'PM Due'
 }
 
-export interface StandardItem {
-  id: string;
-  label: string;
-  isCritical: boolean;
+export enum MaintenanceType {
+  PM = 'Preventive Maintenance',
+  CM = 'Corrective Maintenance (Repair)'
 }
 
-export interface StandardCategory {
-  id: number;
+export type UserRole = 'Admin' | 'Staff';
+
+export interface User {
   name: string;
-  items: StandardItem[];
+  role: UserRole;
+  department?: string; // Optional, only for Staff
 }
 
-export interface ScheduleEntry {
+// New Interface for stored users
+export interface RegisteredUser {
+  username: string;
+  password: string; // In real app, this should be hashed
+  role: UserRole;
+  department?: string;
+}
+
+export interface Asset {
   id: string;
-  date: string; // YYYY-MM-DD
-  hostHospital: HospitalName; // The hospital being visited
-  hospitals: (HospitalName | null)[]; // Array of 5 slots (The visiting team)
+  name: string;
+  model: string;
+  brand: string;
+  serialNumber: string;
+  department: string;
+  purchaseDate: string;
+  price: number;
+  status: AssetStatus;
+  nextPmDate: string;
+  image?: string;
+  manualUrl?: string; // Link to PDF or Document
+  googleDriveUrl?: string; // Link to Google Drive Folder
 }
 
-export interface StandardComment {
-    commendation: string; // ข้อชื่นชม
-    suggestion: string;   // ข้อเสนอแนะ
+export interface CheckItem {
+  name: string;
+  status: 'Normal' | 'Abnormal';
 }
 
-export interface AssessmentRecord {
+export interface CheckRecord {
   id: string;
-  hospital: HospitalName;
+  assetId: string;
+  assetName: string;
   date: string;
-  scores: Record<string, number>; // itemID -> score (1-5)
-  comments?: Record<number, StandardComment>; // standardID -> { commendation, suggestion }
-  totalScore: number;
-  grade: 'ดี' | 'ดีมาก' | 'ดีเยี่ยม' | 'ไม่ผ่าน';
-  passed: boolean;
-  visitors?: string[]; // Added: List of visiting hospitals
+  checkerName: string;
+  type: 'Daily' | 'Periodic';
+  status: 'Pass' | 'Fail';
+  notes?: string;
+  checklistDetails?: { 
+    powerCord: boolean; // true = Normal, false = Abnormal
+    powerCordNote?: string; // Reason if abnormal
+    screen: boolean;
+    screenNote?: string;
+    functionality: boolean;
+    functionalityNote?: string;
+    cleanliness: boolean;
+    cleanlinessNote?: string;
+  };
 }
 
+export interface MaintenanceRecord {
+  id: string;
+  assetId: string;
+  assetName: string;
+  type: MaintenanceType;
+  requestDate: string;
+  completionDate?: string;
+  technician: string;
+  cost: number;
+  description: string;
+  partsReplaced?: string;
+  status: 'Pending' | 'In Progress' | 'Completed';
+  attachmentUrl?: string; // New field for PM Report PDF
+}
+
+export interface LoanRecord {
+  id: string;
+  assetId: string;
+  assetName: string;
+  borrowerName: string;
+  department: string;
+  loanDate: string;
+  dueDate: string;
+  returnDate?: string;
+  status: 'Active' | 'Returned' | 'Overdue';
+}
+
+// Chart Data Types
+export interface StatusDistribution {
+  name: string;
+  value: number;
+  color: string;
+}
+
+// App Settings Type
 export interface AppSettings {
-  googleSheetUrl: string;
-  themeColor: string;
-  logoUrl?: string; // Optional custom logo
-  headerGradient?: string; // Optional custom header gradient
+  hospitalName: string;
+  logoUrl: string;
+  backgroundUrl: string;
+  telegramBotToken: string;
+  telegramChatId: string;
+  googleScriptUrl?: string;
+  departments?: string[]; // Dynamic Department List
 }
