@@ -3,7 +3,7 @@ import { HospitalName, StandardCategory } from './types';
 export const HOSPITAL_LIST: HospitalName[] = Object.values(HospitalName);
 
 export const CRITICAL_ITEMS = [
-  "1.2", "2.2.1", "2.2.2", "2.5", "8.2", "8.3", "8.5", "8.9"
+  "1.2", "2.2.1 และ 2.2.2", "2.5", "8.2", "8.3", "8.5", "8.9"
 ];
 
 export const STANDARDS_DATA: StandardCategory[] = [
@@ -15,7 +15,7 @@ export const STANDARDS_DATA: StandardCategory[] = [
   {
     id: 2,
     name: "มาตรฐานที่ 2: การบริหารและพัฒนาทรัพยากรบุคคล",
-    items: ["2.1", "2.2", "2.2.1", "2.2.2", "2.2.3", "2.3.1", "2.3.2", "2.3.3", "2.4", "2.5"].map(id => ({ id, label: `ข้อ ${id}`, isCritical: CRITICAL_ITEMS.includes(id) }))
+    items: ["2.1", "2.2", "2.2.1 และ 2.2.2", "2.2.3", "2.3.1", "2.3.2 และ 2.3.3", "2.4", "2.5"].map(id => ({ id, label: `ข้อ ${id}`, isCritical: CRITICAL_ITEMS.includes(id) }))
   },
   {
     id: 3,
@@ -25,17 +25,17 @@ export const STANDARDS_DATA: StandardCategory[] = [
   {
     id: 4,
     name: "มาตรฐานที่ 4: การบริหารความเสี่ยง",
-    items: ["4.1", "4.2", "4.3", "4.4"].map(id => ({ id, label: `ข้อ ${id}`, isCritical: CRITICAL_ITEMS.includes(id) }))
+    items: ["4.1", "4.2 และ 4.3", "4.4"].map(id => ({ id, label: `ข้อ ${id}`, isCritical: CRITICAL_ITEMS.includes(id) }))
   },
   {
     id: 5,
     name: "มาตรฐานที่ 5: เครื่องมือทางกายภาพบำบัด อุปกรณ์ และสิ่งอำนวยความสะดวก",
-    items: ["5.1", "5.2", "5.3", "5.4", "5.5"].map(id => ({ id, label: `ข้อ ${id}`, isCritical: CRITICAL_ITEMS.includes(id) }))
+    items: ["5.1", "5.2", "5.3 และ 5.5", "5.4"].map(id => ({ id, label: `ข้อ ${id}`, isCritical: CRITICAL_ITEMS.includes(id) }))
   },
   {
     id: 6,
     name: "มาตรฐานที่ 6: ระบบข้อมูลสารสนเทศทางกายภาพบำบัด",
-    items: ["6.1", "6.2"].map(id => ({ id, label: `ข้อ ${id}`, isCritical: CRITICAL_ITEMS.includes(id) }))
+    items: ["6.1 และ 6.2"].map(id => ({ id, label: `ข้อ ${id}`, isCritical: CRITICAL_ITEMS.includes(id) }))
   },
   {
     id: 7,
