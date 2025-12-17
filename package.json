@@ -1,5 +1,5 @@
 {
-  "name": "ระบบจัดการอุปกรณ์-โรงพยาบาลแก้งคร้อ",
+  "name": "ระบบบริหารจัดการคุณภาพมาตรฐานบริการกายภาพบำบัด-จังหวัดชัยภูมิ",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,11 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
-    "recharts": "^3.5.1",
-    "lucide-react": "^0.556.0",
-    "@google/genai": "latest"
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "recharts": "^3.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
