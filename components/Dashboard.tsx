@@ -1,173 +1,216 @@
-
 import React, { useEffect, useState } from 'react';
-import { Asset, AssetStatus, User } from '../types';
-import { DataService } from '../services/dataService';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
-import { AlertCircle, CheckCircle, Clock, Wrench, Activity, Users } from 'lucide-react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell, LineChart, Line
+} from 'recharts';
+import { db } from '../services/db';
+import { AssessmentRecord, ScheduleEntry } from '../types';
 
-const COLORS = ['#14b8a6', '#f59e0b', '#ef4444', '#64748b']; // Teal, Amber, Red, Slate
-
-interface DashboardProps {
-    currentUser: User | null;
-}
-
-const Dashboard: React.FC<DashboardProps> = ({ currentUser }) => {
-  const [assets, setAssets] = useState<Asset[]>([]);
+export const Dashboard: React.FC = () => {
+  const [assessments, setAssessments] = useState<AssessmentRecord[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      const data = await DataService.getAssets();
-      // Filter assets based on user role
-      if (currentUser && currentUser.role === 'Staff' && currentUser.department) {
-          const filtered = data.filter(a => a.department === currentUser.department);
-          setAssets(filtered);
-      } else {
-          setAssets(data);
-      }
+      setLoading(true);
+      const [assessmentData, scheduleData] = await Promise.all([
+          db.getAssessments(),
+          db.getSchedules()
+      ]);
+      setAssessments(Array.isArray(assessmentData) ? assessmentData : []);
+      setSchedules(Array.isArray(scheduleData) ? scheduleData : []);
       setLoading(false);
     };
     fetchData();
-  }, [currentUser]);
+  }, []);
 
-  if (loading) return <div className="p-8 text-center text-slate-500">กำลังโหลดข้อมูล...</div>;
+  // 1. Process data for Bar Chart (Average score per hospital)
+  const hospitalScores = assessments.reduce((acc, curr) => {
+    if (!acc[curr.hospital]) {
+      acc[curr.hospital] = { total: 0, count: 0 };
+    }
+    acc[curr.hospital].total += curr.totalScore;
+    acc[curr.hospital].count += 1;
+    return acc;
+  }, {} as Record<string, { total: number, count: number }>);
 
-  // Calculate Stats
-  const totalAssets = assets.length;
-  const maintenanceDue = assets.filter(a => a.status === AssetStatus.MAINTENANCE_DUE || a.status === AssetStatus.REPAIR).length;
-  const activeAssets = assets.filter(a => a.status === AssetStatus.ACTIVE).length;
-  const loanedAssets = assets.filter(a => a.status === AssetStatus.LOANED).length;
+  const barData = Object.keys(hospitalScores).map(h => ({
+    name: h,
+    score: Math.round(hospitalScores[h].total / hospitalScores[h].count)
+  })).sort((a,b) => b.score - a.score);
 
-  const statusData = [
-    { name: 'พร้อมใช้งาน', value: activeAssets },
-    { name: 'ส่งซ่อม/ถึงรอบ PM', value: maintenanceDue },
-    { name: 'ถูกยืม', value: loanedAssets },
-    { name: 'จำหน่าย', value: assets.filter(a => a.status === AssetStatus.DISPOSED).length },
-  ].filter(d => d.value > 0);
+  // 2. Process data for Pie Chart (Grading Distribution)
+  const gradeCounts = assessments.reduce((acc, curr) => {
+    acc[curr.grade] = (acc[curr.grade] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
-  const StatCard = ({ title, value, icon: Icon, colorClass, subText }: any) => (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 flex items-start justify-between">
-      <div>
-        <p className="text-sm font-medium text-slate-500 mb-1">{title}</p>
-        <h3 className="text-3xl font-bold text-slate-800">{value}</h3>
-        {subText && <p className="text-xs text-slate-400 mt-2">{subText}</p>}
-      </div>
-      <div className={`p-3 rounded-lg ${colorClass} bg-opacity-10`}>
-        <Icon className={`w-6 h-6 ${colorClass.replace('bg-', 'text-')}`} />
-      </div>
-    </div>
-  );
+  const pieData = Object.keys(gradeCounts).map(g => ({
+    name: g,
+    value: gradeCounts[g]
+  }));
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+  const handleExportCSV = () => {
+      if (assessments.length === 0) {
+          alert("ไม่มีข้อมูลสำหรับการ Export");
+          return;
+      }
+      
+      const header = ["ID", "Hospital", "Date", "Total Score", "Grade", "Passed"];
+      const rows = assessments.map(a => [
+          a.id, 
+          `"${a.hospital}"`, 
+          a.date, 
+          a.totalScore, 
+          a.grade, 
+          a.passed ? "Yes" : "No"
+      ]);
+
+      const csvContent = "data:text/csv;charset=utf-8,\uFEFF" // Add BOM for Thai support
+          + header.join(",") + "\n" 
+          + rows.map(e => e.join(",")).join("\n");
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "assessment_data_export.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
+
+  // 3. Process Schedule Data for Table
+  const sortedSchedules = [...schedules].sort((a,b) => a.date.localeCompare(b.date));
+
+  if (loading) return <div className="p-10 text-center text-gray-500">กำลังโหลดข้อมูล Dashboard...</div>;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between">
-        <div>
-            <h1 className="text-2xl font-bold text-slate-800 flex items-center">
-                แดชบอร์ด (Dashboard)
-                {currentUser?.role === 'Staff' && (
-                    <span className="ml-3 text-sm bg-primary-100 text-primary-700 px-3 py-1 rounded-full font-medium flex items-center">
-                        <Users className="w-3 h-3 mr-1" /> เฉพาะแผนก {currentUser.department}
-                    </span>
-                )}
-            </h1>
-            <p className="text-slate-500">ภาพรวมสถานะคุรุภัณฑ์ทางการแพทย์</p>
+    <div className="space-y-8 animate-fade-in no-print">
+        <div className="flex justify-between items-center">
+             <h2 className="text-2xl font-bold text-gray-800">แดชบอร์ดสรุปผล</h2>
+             <button onClick={handleExportCSV} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow flex items-center gap-2">
+                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                 Export Data (CSV)
+             </button>
+        </div>
+
+      {/* NEW: Visit Schedule Table */}
+      <div className="bg-white p-6 rounded-lg shadow-md overflow-hidden">
+        <h3 className="text-lg font-bold text-teal-800 mb-4 flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            ตารางการออกเยี่ยม (Visit Schedule)
+        </h3>
+        <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+                <thead>
+                    <tr className="bg-teal-50 border-b border-teal-200">
+                        <th className="px-4 py-3 text-left font-semibold text-teal-900 w-32">วันที่</th>
+                        <th className="px-4 py-3 text-left font-semibold text-teal-900 w-1/4">โรงพยาบาลที่รับการเยี่ยม (Host)</th>
+                        <th className="px-4 py-3 text-left font-semibold text-teal-900">ทีมผู้เยี่ยม (Visitors)</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                    {sortedSchedules.length === 0 && (
+                        <tr><td colSpan={3} className="px-4 py-6 text-center text-gray-400">ยังไม่มีแผนการเยี่ยม</td></tr>
+                    )}
+                    {sortedSchedules.map((s, idx) => (
+                        <tr key={idx} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 whitespace-nowrap font-medium text-gray-700 align-top">
+                                <div className="text-base">{new Date(s.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short'})}</div>
+                                <div className="text-xs text-gray-400">{new Date(s.date).toLocaleDateString('th-TH', { year: '2-digit'})}</div>
+                            </td>
+                            <td className="px-4 py-3 font-bold text-teal-700 align-top text-base">
+                                {s.hostHospital || "-"}
+                            </td>
+                            <td className="px-4 py-3 text-gray-600 align-top">
+                                <div className="flex items-center gap-2 mb-2">
+                                     <span className="text-xs font-semibold bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full">
+                                        จำนวน {s.hospitals.filter(Boolean).length} แห่ง
+                                     </span>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                    {s.hospitals.filter(Boolean).map((h, i) => (
+                                        <span key={i} className="inline-block bg-teal-50 rounded px-2 py-1 text-sm border border-teal-100 text-teal-800">
+                                            {h}
+                                        </span>
+                                    ))}
+                                </div>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
       </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="ทั้งหมด" 
-          value={totalAssets} 
-          icon={CheckCircle} 
-          colorClass="text-blue-600 bg-blue-600"
-          subText={currentUser?.role === 'Staff' ? `ในแผนก ${currentUser.department}` : "จำนวนครุภัณฑ์ในระบบ"} 
-        />
-        <StatCard 
-          title="พร้อมใช้งาน" 
-          value={activeAssets} 
-          icon={Activity} 
-          colorClass="text-teal-600 bg-teal-600"
-          subText={`คิดเป็น ${totalAssets > 0 ? ((activeAssets/totalAssets)*100).toFixed(0) : 0}% ของทั้งหมด`} 
-        />
-        <StatCard 
-          title="ต้องซ่อม/บำรุงรักษา" 
-          value={maintenanceDue} 
-          icon={Wrench} 
-          colorClass="text-red-500 bg-red-500"
-          subText="ต้องการดำเนินการด่วน" 
-        />
-        <StatCard 
-          title="ถูกยืมออกไป" 
-          value={loanedAssets} 
-          icon={Clock} 
-          colorClass="text-amber-500 bg-amber-500"
-          subText="รอการนำส่งคืน" 
-        />
-      </div>
-
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Asset Status Distribution */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">สถานะครุภัณฑ์ (Asset Status)</h3>
+     
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Score Distribution */}
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-bold text-gray-700 mb-4">สัดส่วนระดับผลการประเมิน</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={statusData}
+                  data={pieData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   outerRadius={80}
                   fill="#8884d8"
-                  paddingAngle={5}
                   dataKey="value"
                 >
-                  {statusData.map((entry, index) => (
+                  {pieData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend verticalAlign="bottom" height={36}/>
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Recent Alerts / Quick Actions */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800 mb-4">การแจ้งเตือนล่าสุด (Recent Alerts)</h3>
-          <div className="space-y-4">
-             {assets.filter(a => a.status === AssetStatus.MAINTENANCE_DUE).slice(0, 3).map(asset => (
-               <div key={asset.id} className="flex items-center p-3 bg-red-50 border border-red-100 rounded-lg">
-                 <AlertCircle className="w-5 h-5 text-red-500 mr-3" />
-                 <div>
-                   <p className="text-sm font-semibold text-red-700">ถึงกำหนด PM: {asset.name}</p>
-                   <p className="text-xs text-red-600">ครบกำหนด: {asset.nextPmDate} (แผนก: {asset.department})</p>
-                 </div>
-               </div>
-             ))}
-             {assets.filter(a => a.status === AssetStatus.LOANED).slice(0, 3).map(asset => (
-               <div key={asset.id} className="flex items-center p-3 bg-amber-50 border border-amber-100 rounded-lg">
-                 <Clock className="w-5 h-5 text-amber-500 mr-3" />
-                 <div>
-                   <p className="text-sm font-semibold text-amber-700">กำลังถูกยืม: {asset.name}</p>
-                   <p className="text-xs text-amber-600">แผนกเจ้าของ: {asset.department}</p>
-                 </div>
-               </div>
-             ))}
-             {maintenanceDue === 0 && loanedAssets === 0 && (
-                <div className="text-center text-slate-400 py-8">
-                  <CheckCircle className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                  <p>สถานะปกติ ไม่มีรายการแจ้งเตือน</p>
-                </div>
-             )}
+        {/* Historical Trends */}
+        <div className="bg-white p-6 rounded-lg shadow-md">
+          <h3 className="text-lg font-bold text-gray-700 mb-4">แนวโน้มคะแนนเฉลี่ยรายปี</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={[
+                  { year: '2563', score: 190 },
+                  { year: '2564', score: 215 },
+                  { year: '2565', score: 200 },
+                  { year: '2566', score: 230 },
+                  { year: '2567', score: 245 },
+              ]}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="year" />
+                <YAxis domain={[0, 300]} />
+                <Tooltip />
+                <Line type="monotone" dataKey="score" stroke="#0d9488" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
+        </div>
+      </div>
+
+      {/* Hospital Ranking */}
+      <div className="bg-white p-6 rounded-lg shadow-md">
+        <h3 className="text-lg font-bold text-gray-700 mb-4">คะแนนเฉลี่ยรายโรงพยาบาล</h3>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={barData} layout="vertical" margin={{ left: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" domain={[0, 300]} />
+              <YAxis dataKey="name" type="category" width={150} tick={{fontSize: 12}} />
+              <Tooltip />
+              <Bar dataKey="score" fill="#0f766e" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>
   );
 };
-
-export default Dashboard;
