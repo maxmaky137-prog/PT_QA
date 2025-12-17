@@ -52,21 +52,37 @@ const sendTelegramMessage = async (message: string) => {
 
 // --- Google Sheets API Helper ---
 const apiFetch = async (sheetName: string) => {
-  const url = `${getApiUrl()}?sheet=${sheetName}`;
-  const res = await fetch(url);
-  const json = await res.json();
-  return Array.isArray(json) ? json : [];
+  // Add timestamp to prevent caching
+  const url = `${getApiUrl()}?sheet=${sheetName}&t=${new Date().getTime()}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+    const json = await res.json();
+    return Array.isArray(json) ? json : [];
+  } catch (error) {
+    console.error(`API Fetch Error (${sheetName}):`, error);
+    // If API fails, return empty array to prevent app crash, 
+    // but log it so user knows why data is missing.
+    return [];
+  }
 };
 
 const apiPost = async (sheetName: string, action: 'add' | 'update' | 'delete', data: any) => {
   const url = getApiUrl();
-  await fetch(url!, {
-    method: 'POST',
-    mode: 'no-cors', 
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sheet: sheetName, action, data })
-  });
-  return data;
+  try {
+    // Note: no-cors mode is used for GAS simple triggers compatibility, 
+    // but it means we can't read the response. 
+    await fetch(url!, {
+      method: 'POST',
+      mode: 'no-cors', 
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheet: sheetName, action, data })
+    });
+    return data;
+  } catch (error) {
+    console.error(`API Post Error (${action}):`, error);
+    throw error;
+  }
 };
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -124,7 +140,10 @@ export const DataService = {
   // --- Asset Management ---
   getAssets: async (): Promise<Asset[]> => {
     if (useApi()) {
-      try { return await apiFetch('Assets'); } catch (e) { console.error(e); return []; }
+      const data = await apiFetch('Assets');
+      // If API returns empty but we expected data, it might be a connection issue
+      // But we adhere to the API source of truth.
+      return data;
     }
     await delay(300);
     const stored = localStorage.getItem('ME_Assets');
@@ -184,7 +203,7 @@ export const DataService = {
 
   getChecks: async (): Promise<CheckRecord[]> => {
     if (useApi()) {
-      try { return await apiFetch('Checks'); } catch (e) { return []; }
+      return await apiFetch('Checks');
     }
     await delay(300);
     const stored = localStorage.getItem('ME_Checks');
@@ -238,7 +257,7 @@ export const DataService = {
 
   getMaintenanceRecords: async (): Promise<MaintenanceRecord[]> => {
     if (useApi()) {
-      try { return await apiFetch('Maintenance'); } catch (e) { return []; }
+      return await apiFetch('Maintenance');
     }
     await delay(300);
     const stored = localStorage.getItem('ME_Maintenance');
@@ -286,7 +305,7 @@ export const DataService = {
 
   getLoans: async (): Promise<LoanRecord[]> => {
     if (useApi()) {
-      try { return await apiFetch('Loans'); } catch (e) { return []; }
+      return await apiFetch('Loans');
     }
     await delay(300);
     const stored = localStorage.getItem('ME_Loans');
