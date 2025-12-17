@@ -1,5 +1,5 @@
 {
-  "name": "ระบบบริหารจัดการคุณภาพมาตรฐานบริการกายภาพบำบัด จังหวัดชัยภูมิ",
-  "description": "A comprehensive web application for scheduling, assessing, and analyzing physical therapy service standards across hospitals in Chaiyaphum, featuring intelligent scheduling validation and standard-based scoring.",
+  "name": "ระบบจัดการอุปกรณ์ โรงพยาบาลแก้งคร้อ",
+  "description": "A comprehensive web-based Medical Equipment Management System featuring asset registry, daily readiness checks, maintenance scheduling (PM/CM), and loan tracking. Designed to integrate with Google Sheets.",
   "requestFramePermissions": []
 }
